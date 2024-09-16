@@ -1,20 +1,26 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
-from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework import status
 from django.db.models import Sum
-from .models import InvestmentAccount, Transaction, User  # Ensure User is imported
+from .models import InvestmentAccount, Transaction, User, UserInvestmentAccount
 from .permissions import (
     ViewInvestmentAccountPermission,
-    CreateInvestmentAccountPermission,
-    UpdateInvestmentAccountPermission,
-    DeleteInvestmentAccountPermission,
     PostTransactionPermission,
 )
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
+
+
+def get_user_role(user, investment_account):
+    try:
+        user_investment_account = UserInvestmentAccount.objects.get(
+            user=user, investment_account=investment_account
+        )
+        return user_investment_account.role
+    except UserInvestmentAccount.DoesNotExist:
+        return None
 
 
 class InvestmentAccountListView(APIView):
@@ -34,36 +40,64 @@ class InvestmentAccountListView(APIView):
 
 
 class InvestmentAccountDetailView(APIView):
-    permission_classes = [ViewInvestmentAccountPermission]
-
     def get(self, request, pk):
         investment_account = get_object_or_404(InvestmentAccount, pk=pk)
-        serializer = InvestmentAccountSerializer(investment_account)
-        return Response(serializer.data)
+        role = get_user_role(request.user, investment_account)
+
+        if role == "VIEW" or role == "FULL CRUD":
+            serializer = InvestmentAccountSerializer(investment_account)
+            return Response(serializer.data)
+        return Response(
+            {"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+        )
 
     def put(self, request, pk):
         investment_account = get_object_or_404(InvestmentAccount, pk=pk)
-        serializer = InvestmentAccountSerializer(investment_account, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        role = get_user_role(request.user, investment_account)
+
+        if role == "FULL CRUD":
+            serializer = InvestmentAccountSerializer(
+                investment_account, data=request.data
+            )
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+        )
 
     def delete(self, request, pk):
         investment_account = get_object_or_404(InvestmentAccount, pk=pk)
-        investment_account.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        role = get_user_role(request.user, investment_account)
+
+        if role == "FULL CRUD":
+            investment_account.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+        )
 
 
 class TransactionCreateView(APIView):
     permission_classes = [PostTransactionPermission]
 
     def post(self, request):
-        serializer = TransactionSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        investment_account_id = request.data.get("investment_account")
+        investment_account = get_object_or_404(
+            InvestmentAccount, id=investment_account_id
+        )
+        role = get_user_role(request.user, investment_account)
+
+        if role == "POST" or role == "FULL CRUD":
+            serializer = TransactionSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Permission denied"}, status=status.HTTP_403_FORBIDDEN
+        )
 
 
 class AdminTransactionView(APIView):
