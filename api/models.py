@@ -4,12 +4,12 @@ from django.contrib.auth.models import AbstractUser
 
 # Create your models here.
 class User(AbstractUser):
-    investment_accounts = models.ManyToManyField(
-        "InvestmentAccounts")
+    investment_accounts = models.ManyToManyField("InvestmentAccounts")
+
 
 class InvestmentAccounts(models.Model):
-    name= models.CharField(max_length=100)
-    balance =models.DecimalField(max_digits=10, decimal_places=2)
+    name = models.CharField(max_length=100)
+    balance = models.DecimalField(max_digits=10, decimal_places=2)
     users = models.ManyToManyField(User)
 
 
