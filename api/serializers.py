@@ -1,10 +1,10 @@
 from rest_framework import serializers
-from .models import InvestmentAccounts, Transaction
+from .models import InvestmentAccount, Transaction
 
 
 class InvestmentAccountSerializer(serializers.ModelSerializer):
     class Meta:
-        model = InvestmentAccounts
+        model = InvestmentAccount
         fields = ["id", "name", "balance", "users"]
 
 
