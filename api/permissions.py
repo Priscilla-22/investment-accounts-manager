@@ -1,16 +1,16 @@
-from rest_framework.permissions import BasePermission
+from rest_framework import permissions
 
 
-def permission_required(permission_name):
-    class Permission(BasePermission):
-        def has_permission(self, request, view):
-            return request.user.has_perm(permission_name)
-
-    return Permission
+class IsViewOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.account_type == "view_only"
 
 
-ViewInvestmentAccountPermission = permission_required("view_investment_account")
-CreateInvestmentAccountPermission = permission_required("create_investment_account")
-UpdateInvestmentAccountPermission = permission_required("update_investment_account")
-DeleteInvestmentAccountPermission = permission_required("delete_investment_account")
-PostTransactionPermission = permission_required("post_transaction")
+class IsFullAccess(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.account_type == "full_access"
+
+
+class IsPostOnly(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        return obj.account_type == "post_only"
