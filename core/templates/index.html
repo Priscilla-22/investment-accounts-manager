@@ -81,7 +81,7 @@
             const name = $('#accountName').val();
             const type = $('#accountType').val();
             $.ajax({
-                url: '/api/accounts-api/',
+                url: '/api/accounts_api/',
                 type: 'POST',
                 data: JSON.stringify({ name: name, account_type: type }),
                 contentType: 'application/json',
