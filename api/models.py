@@ -11,7 +11,9 @@ class InvestmentAccount(models.Model):
 
     name = models.CharField(max_length=100)
     user = models.ForeignKey(User, related_name="accounts", on_delete=models.CASCADE)
-    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+    account_type = models.CharField(
+        max_length=20, choices=ACCOUNT_TYPES, default="view_only"
+    )
 
     def __str__(self):
         return f"{self.user.username} - {self.name} ({self.get_account_type_display()})"
