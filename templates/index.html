@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Dashboard</title>
+    <!-- Add Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            padding-top: 20px;
+        }
+        .account-card {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Investment Dashboard</h1>
+
+        <!-- Form to Add New Account -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Add Investment Account</h3>
+                <form id="accountForm">
+                    <div class="form-group">
+                        <label for="accountName">Account Name:</label>
+                        <input type="text" class="form-control" id="accountName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="accountType">Account Type:</label>
+                        <select class="form-control" id="accountType" required>
+                            <option value="view_only">View Only</option>
+                            <option value="full_access">Full Access</option>
+                            <option value="post_only">Post Only</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Account</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Display List of Investment Accounts -->
+        <h3>Investment Accounts</h3>
+        <div id="accountList">
+            <!-- Investment Accounts will be inserted here dynamically -->
+        </div>
+    </div>
+
+    <!-- Add Bootstrap JS and jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        // Fetch Accounts and display
+        function fetchAccounts() {
+            $.getJSON('/api/accounts/', function(data) {
+                $('#accountList').empty();
+                data.forEach(function(account) {
+                    $('#accountList').append(`
+                        <div class="account-card">
+                            <h4>${account.name}</h4>
+                            <p>Account Type: ${account.account_type}</p>
+                            <p>Transactions:</p>
+                            <ul>
+                                ${account.transactions.map(t => `<li>Amount: ${t.amount}, Timestamp: ${t.timestamp}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `);
+                });
+            });
+        }
+
+        // Add new account via API
+        $('#accountForm').submit(function(event) {
+            event.preventDefault();
+            const name = $('#accountName').val();
+            const type = $('#accountType').val();
+            $.ajax({
+                url: '/api/accounts/',
+                type: 'POST',
+                data: JSON.stringify({ name: name, account_type: type }),
+                contentType: 'application/json',
+                success: function() {
+                    fetchAccounts();
+                },
+                error: function() {
+                    alert('Error creating account');
+                }
+            });
+        });
+
+        // Fetch accounts on page load
+        $(document).ready(function() {
+            fetchAccounts();
+        });
+    </script>
+</body>
+</html>
