@@ -1,34 +1,28 @@
+from django.contrib.auth.models import User
 from django.db import models
-from django.contrib.auth.models import AbstractUser
-
-
-# Create your models here.
-class User(AbstractUser):
-    investment_accounts = models.ManyToManyField("InvestmentAccounts")
 
 
 class InvestmentAccount(models.Model):
+    ACCOUNT_TYPES = (
+        ("view_only", "View Only"),
+        ("full_access", "Full Access"),
+        ("post_only", "Post Only"),
+    )
+
     name = models.CharField(max_length=100)
-    balance = models.DecimalField(max_digits=10, decimal_places=2)
-    users = models.ManyToManyField(User)
+    user = models.ForeignKey(User, related_name="accounts", on_delete=models.CASCADE)
+    account_type = models.CharField(max_length=20, choices=ACCOUNT_TYPES)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.name} ({self.get_account_type_display()})"
 
 
 class Transaction(models.Model):
-    investment_account = models.ForeignKey(InvestmentAccount, on_delete=models.CASCADE)
+    account = models.ForeignKey(
+        InvestmentAccount, related_name="transactions", on_delete=models.CASCADE
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField()
+    timestamp = models.DateTimeField(auto_now_add=True)
 
-
-class UserInvestmentAccount(models.Model):
-    PERMISSIONS = [
-        ("VIEW", "View"),
-        ("FULL CRUD", "full crud"),
-        ("POST", "Post"),
-    ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    investment_account = models.ForeignKey(InvestmentAccount, on_delete=models.CASCADE)
-    role = models.CharField(max_length=10, choices=PERMISSIONS)
-
-    class Meta:
-        unique_together = ("user", "investment_account")
+    def __str__(self):
+        return f"{self.account.name}: {self.amount}"
