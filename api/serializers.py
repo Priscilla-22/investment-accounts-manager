@@ -2,18 +2,15 @@ from rest_framework import serializers
 from .models import InvestmentAccount, Transaction
 
 
-class InvestmentAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InvestmentAccount
-        fields = ["id", "name", "balance", "users"]
-
-
 class TransactionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transaction
-        fields = ["id", "investment_account", "amount", "date"]
+        fields = ["id", "amount", "timestamp"]
 
-    def to_representation(self, instance):
-        representation = super().to_representation(instance)
-        representation["investment_account"] = instance.investment_account.name
-        return representation
+
+class InvestmentAccountSerializer(serializers.ModelSerializer):
+    transactions = TransactionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = InvestmentAccount
+        fields = ["id", "name", "account_type", "transactions"]
