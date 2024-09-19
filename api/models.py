@@ -10,7 +10,9 @@ class InvestmentAccount(models.Model):
     )
 
     name = models.CharField(max_length=100)
-    user = models.ForeignKey(User, related_name="accounts", on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        User, related_name="accounts", on_delete=models.CASCADE, null=True
+    )
     account_type = models.CharField(
         max_length=20, choices=ACCOUNT_TYPES, default="view_only"
     )
@@ -21,10 +23,13 @@ class InvestmentAccount(models.Model):
 
 class Transaction(models.Model):
     account = models.ForeignKey(
-        InvestmentAccount, related_name="transactions", on_delete=models.CASCADE
+        InvestmentAccount,
+        related_name="transactions",
+        on_delete=models.CASCADE,
+        null=True,
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True, null=True)
 
     def __str__(self):
         return f"{self.account.name}: {self.amount}"
