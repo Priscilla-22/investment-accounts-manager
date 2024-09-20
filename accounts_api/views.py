@@ -20,7 +20,7 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
         """
         Set permissions based on the account type.
         """
-        account_id = self.kwargs.get("pk")  # 'pk' is for specific account
+        account_id = self.kwargs.get("pk")  
         if account_id:
             account = InvestmentAccount.objects.filter(id=account_id).first()
             if (
@@ -28,7 +28,7 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
                 and account.account_type == "post_only"
                 and self.request.method == "GET"
             ):
-                self.permission_classes = [IsPostOnly]  # Force a permission denial
+                self.permission_classes = [IsPostOnly] 
         return super().get_permissions()
 
 
