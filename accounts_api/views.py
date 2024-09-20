@@ -8,6 +8,8 @@ from django.db.models import Sum
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
+from django.shortcuts import render
+from django.utils.dateparse import parse_date
 
 
 class InvestmentAccountViewSet(viewsets.ModelViewSet):
@@ -16,36 +18,49 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if (
-            self.action == "retrieve"
-            and self.request.user.accounts.filter(account_type="view_only").exists()
-        ):
+        if self.action == "retrieve":
             self.permission_classes = [IsViewOnly]
-        elif (
-            self.action in ["create", "update", "delete"]
-            and self.request.user.accounts.filter(account_type="full_access").exists()
-        ):
+        elif self.action in ["create", "update", "destroy"]:
             self.permission_classes = [IsFullAccess]
-        elif (
-            self.action == "create"
-            and self.request.user.accounts.filter(account_type="post_only").exists()
-        ):
-            self.permission_classes = [IsPostOnly]
         return super().get_permissions()
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        account_id = self.request.data.get("account")
+        try:
+            account = InvestmentAccount.objects.get(id=account_id)
+        except InvestmentAccount.DoesNotExist:
+            raise serializers.ValidationError("Invalid account ID.")
+
+        if account.account_type == "view_only":
+            self.permission_classes = [IsViewOnly]
+        elif account.account_type == "post_only":
+            self.permission_classes = [IsPostOnly]
+        elif account.account_type == "full_access":
+            self.permission_classes = [IsFullAccess]
+
+        return super().get_permissions()
 
 
 class AdminViewSet(viewsets.ViewSet):
     @action(detail=False, methods=["get"])
     def transactions_summary(self, request):
         user = request.user
-        accounts = InvestmentAccount.objects.filter(user=user)
+        accounts = InvestmentAccount.objects.filter(users=user)
+
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+
         transactions = Transaction.objects.filter(account__in=accounts)
+        if start_date:
+            transactions = transactions.filter(timestamp__gte=parse_date(start_date))
+        if end_date:
+            transactions = transactions.filter(timestamp__lte=parse_date(end_date))
+
         total_balance = transactions.aggregate(Sum("amount"))["amount__sum"] or 0
 
         return Response(
@@ -55,9 +70,6 @@ class AdminViewSet(viewsets.ViewSet):
             },
             status=status.HTTP_200_OK,
         )
-
-
-from django.shortcuts import render
 
 
 def dashboard(request):
