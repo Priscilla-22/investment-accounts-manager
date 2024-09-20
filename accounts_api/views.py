@@ -1,16 +1,14 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.db.models import Sum
+from django.utils.dateparse import parse_date
+from django.shortcuts import render
+
 from .models import InvestmentAccount, Transaction
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
 from .permissions import IsViewOnly, IsFullAccess, IsPostOnly
-from rest_framework import serializers
-
-from django.db.models import Sum
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
-from django.shortcuts import render
-from django.utils.dateparse import parse_date
 
 
 class InvestmentAccountViewSet(viewsets.ModelViewSet):
@@ -19,10 +17,18 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action == "retrieve":
-            self.permission_classes = [IsViewOnly]
-        elif self.action in ["create", "update", "destroy"]:
-            self.permission_classes = [IsFullAccess]
+        """
+        Set permissions based on the account type.
+        """
+        account_id = self.kwargs.get("pk")  # 'pk' is for specific account
+        if account_id:
+            account = InvestmentAccount.objects.filter(id=account_id).first()
+            if (
+                account
+                and account.account_type == "post_only"
+                and self.request.method == "GET"
+            ):
+                self.permission_classes = [IsPostOnly]  # Force a permission denial
         return super().get_permissions()
 
 
@@ -31,60 +37,65 @@ class TransactionViewSet(viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        account_id = self.request.query_params.get("account")
-
-        if account_id:
-            if not InvestmentAccount.objects.filter(id=account_id, users=user).exists():
-                raise serializers.ValidationError(
-                    "Invalid account ID or insufficient access rights."
-                )
-            return Transaction.objects.filter(account_id=account_id)
-
-        return Transaction.objects.filter(account__users=user)
+    def get_permissions(self):
+        """
+        Override to set specific permissions for actions.
+        """
+        if self.action in ["retrieve", "list"]:  # GET request methods
+            account_id = self.request.query_params.get("account")
+            if account_id:
+                account = InvestmentAccount.objects.filter(id=account_id).first()
+                if account and account.account_type == "post_only":
+                    self.permission_classes = [IsPostOnly]
+        return super().get_permissions()
 
     def get_permissions(self):
         """
-        Set permissions based on account type, using the associated account of the transaction for DELETE requests.
+         Override to set specific permissions for actions.
         """
-        if self.request.method == "DELETE":
-            transaction_id = self.kwargs.get("pk")
-            try:
-                transaction = Transaction.objects.get(id=transaction_id)
-                account = transaction.account
-            except Transaction.DoesNotExist:
-                raise serializers.ValidationError("Transaction does not exist.")
-
-            if account.account_type == "view_only":
-                raise serializers.ValidationError(
-                    "View-only accounts cannot delete transactions."
-                )
-            elif account.account_type == "post_only":
-                raise serializers.ValidationError(
-                    "Post-only accounts cannot delete transactions."
-                )
-            elif account.account_type == "full_access":
-                return super().get_permissions()
-
-        if self.request.method != "GET":
-            account_id = self.request.data.get("account")
-            if not account_id:
-                raise serializers.ValidationError("Account ID is required.")
-
-            try:
-                account = InvestmentAccount.objects.get(id=account_id)
-            except InvestmentAccount.DoesNotExist:
-                raise serializers.ValidationError("Invalid account ID.")
-
-            if account.account_type == "view_only":
-                self.permission_classes = [IsViewOnly]
-            elif account.account_type == "post_only":
-                self.permission_classes = [IsPostOnly]
-            elif account.account_type == "full_access":
-                self.permission_classes = [IsFullAccess]
-
+        if self.action in ["retrieve", "list"]:  # GET request methods
+            account_id = self.request.query_params.get("account")
+            if account_id:
+                account = InvestmentAccount.objects.filter(id=account_id).first()
+                if account and account.account_type == "post_only":
+                    self.permission_classes = [IsPostOnly]
         return super().get_permissions()
+
+
+    def check_post_only_permission(self, account, request):
+        """
+        Helper method to check if the account is 'post_only' and block non-POST requests.
+        """
+        if account.account_type == "post_only" and request.method != "POST":
+            raise serializers.ValidationError(
+                "Post-only accounts can only perform POST requests."
+            )
+
+    def perform_create(self, serializer):
+        """
+        Custom method to check 'post_only' restrictions before creating a transaction.
+        """
+        account = serializer.validated_data.get("account")
+        self.check_post_only_permission(account, self.request)
+        serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        """
+        Block update operation for 'post_only' accounts.
+        """
+        transaction = self.get_object()
+        account = transaction.account
+        self.check_post_only_permission(account, request)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Block delete operation for 'post_only' accounts.
+        """
+        transaction = self.get_object()
+        account = transaction.account
+        self.check_post_only_permission(account, request)
+        return super().destroy(request, *args, **kwargs)
 
 
 class AdminViewSet(viewsets.ViewSet):

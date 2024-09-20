@@ -15,4 +15,9 @@ class IsFullAccess(permissions.BasePermission):
 
 class IsPostOnly(permissions.BasePermission):
     def has_permission(self, request, view):
-        return request.method == "POST"
+        """
+        Post-only accounts can only perform POST requests.
+        """
+        if request.method == "POST":
+            return True
+        return False
