@@ -46,8 +46,27 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """
-        Set permissions based on account type.
+        Set permissions based on account type, using the associated account of the transaction for DELETE requests.
         """
+        if self.request.method == "DELETE":
+            transaction_id = self.kwargs.get("pk")
+            try:
+                transaction = Transaction.objects.get(id=transaction_id)
+                account = transaction.account
+            except Transaction.DoesNotExist:
+                raise serializers.ValidationError("Transaction does not exist.")
+
+            if account.account_type == "view_only":
+                raise serializers.ValidationError(
+                    "View-only accounts cannot delete transactions."
+                )
+            elif account.account_type == "post_only":
+                raise serializers.ValidationError(
+                    "Post-only accounts cannot delete transactions."
+                )
+            elif account.account_type == "full_access":
+                return super().get_permissions()
+
         if self.request.method != "GET":
             account_id = self.request.data.get("account")
             if not account_id:
