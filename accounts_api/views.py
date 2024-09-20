@@ -41,26 +41,13 @@ class TransactionViewSet(viewsets.ModelViewSet):
         """
         Override to set specific permissions for actions.
         """
-        if self.action in ["retrieve", "list"]:  # GET request methods
+        if self.action in ["retrieve", "list"]:  
             account_id = self.request.query_params.get("account")
             if account_id:
                 account = InvestmentAccount.objects.filter(id=account_id).first()
                 if account and account.account_type == "post_only":
                     self.permission_classes = [IsPostOnly]
         return super().get_permissions()
-
-    def get_permissions(self):
-        """
-         Override to set specific permissions for actions.
-        """
-        if self.action in ["retrieve", "list"]:  # GET request methods
-            account_id = self.request.query_params.get("account")
-            if account_id:
-                account = InvestmentAccount.objects.filter(id=account_id).first()
-                if account and account.account_type == "post_only":
-                    self.permission_classes = [IsPostOnly]
-        return super().get_permissions()
-
 
     def check_post_only_permission(self, account, request):
         """
