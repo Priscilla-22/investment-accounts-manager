@@ -19,14 +19,23 @@ class TransactionSerializer(serializers.ModelSerializer):
 
         if account.account_type == "view_only":
             if request.method != "GET":
-                raise serializers.ValidationError("View-only accounts cannot perform this action.")
+                raise serializers.ValidationError(
+                    "View-only accounts cannot perform this action."
+                )
+
         elif account.account_type == "post_only":
-            if request.method != "POST":
-                raise serializers.ValidationError("Post-only accounts cannot perform this action.")
+            if request.method == "POST":
+                return data
+            else:
+                raise serializers.ValidationError(
+                    "Post-only accounts cannot perform this action."
+                )
+
         elif account.account_type == "full_access":
             return data
 
         raise serializers.ValidationError("Invalid account type for this action.")
+
 
 class InvestmentAccountSerializer(serializers.ModelSerializer):
     transactions = TransactionSerializer(many=True, read_only=True)
