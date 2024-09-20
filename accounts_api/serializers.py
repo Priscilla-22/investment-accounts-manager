@@ -17,20 +17,16 @@ class TransactionSerializer(serializers.ModelSerializer):
                 "Invalid account ID or insufficient access rights."
             )
 
-        if account.account_type == "view_only" and request.method == "POST":
-            raise serializers.ValidationError(
-                "View-only accounts cannot create transactions."
-            )
-        elif account.account_type == "post_only" and request.method != "POST":
-            raise serializers.ValidationError(
-                "Post-only accounts cannot view or modify transactions."
-            )
-
-        if account.account_type == "full_access" and request.method == "POST":
-            return data  
+        if account.account_type == "view_only":
+            if request.method != "GET":
+                raise serializers.ValidationError("View-only accounts cannot perform this action.")
+        elif account.account_type == "post_only":
+            if request.method != "POST":
+                raise serializers.ValidationError("Post-only accounts cannot perform this action.")
+        elif account.account_type == "full_access":
+            return data
 
         raise serializers.ValidationError("Invalid account type for this action.")
-
 
 class InvestmentAccountSerializer(serializers.ModelSerializer):
     transactions = TransactionSerializer(many=True, read_only=True)

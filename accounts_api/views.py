@@ -32,37 +32,38 @@ class TransactionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Restrict the queryset to transactions for the current user's accounts.
-        """
         user = self.request.user
-        account_id = self.request.query_params.get(
-            "account"
-        )  
+        account_id = self.request.query_params.get("account")
 
         if account_id:
             if not InvestmentAccount.objects.filter(id=account_id, users=user).exists():
                 raise serializers.ValidationError(
                     "Invalid account ID or insufficient access rights."
                 )
-
             return Transaction.objects.filter(account_id=account_id)
 
         return Transaction.objects.filter(account__users=user)
 
     def get_permissions(self):
-        account_id = self.request.data.get("account")  # This is valid for POST requests
-        try:
-            account = InvestmentAccount.objects.get(id=account_id)
-        except InvestmentAccount.DoesNotExist:
-            raise serializers.ValidationError("Invalid account ID.")
+        """
+        Set permissions based on account type.
+        """
+        if self.request.method != "GET":
+            account_id = self.request.data.get("account")
+            if not account_id:
+                raise serializers.ValidationError("Account ID is required.")
 
-        if account.account_type == "view_only":
-            self.permission_classes = [IsViewOnly]
-        elif account.account_type == "post_only":
-            self.permission_classes = [IsPostOnly]
-        elif account.account_type == "full_access":
-            self.permission_classes = [IsFullAccess]
+            try:
+                account = InvestmentAccount.objects.get(id=account_id)
+            except InvestmentAccount.DoesNotExist:
+                raise serializers.ValidationError("Invalid account ID.")
+
+            if account.account_type == "view_only":
+                self.permission_classes = [IsViewOnly]
+            elif account.account_type == "post_only":
+                self.permission_classes = [IsPostOnly]
+            elif account.account_type == "full_access":
+                self.permission_classes = [IsFullAccess]
 
         return super().get_permissions()
 
