@@ -12,13 +12,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         user = request.user
 
-        # Check if the user has access to the account
         if not account.users.filter(id=user.id).exists():
             raise serializers.ValidationError(
                 "Invalid account ID or insufficient access rights."
             )
 
-        # Check permissions based on account type
         if account.account_type == "view_only" and request.method == "POST":
             raise serializers.ValidationError(
                 "View-only accounts cannot create transactions."
@@ -28,7 +26,10 @@ class TransactionSerializer(serializers.ModelSerializer):
                 "Post-only accounts cannot view or modify transactions."
             )
 
-        return data
+        if account.account_type == "full_access" and request.method == "POST":
+            return data  
+
+        raise serializers.ValidationError("Invalid account type for this action.")
 
 
 class InvestmentAccountSerializer(serializers.ModelSerializer):

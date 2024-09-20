@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from .models import InvestmentAccount, Transaction
 from .serializers import InvestmentAccountSerializer, TransactionSerializer
 from .permissions import IsViewOnly, IsFullAccess, IsPostOnly
+from rest_framework import serializers
 
 from django.db.models import Sum
 from rest_framework.decorators import action
@@ -28,9 +29,29 @@ class InvestmentAccountViewSet(viewsets.ModelViewSet):
 class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Restrict the queryset to transactions for the current user's accounts.
+        """
+        user = self.request.user
+        account_id = self.request.query_params.get(
+            "account"
+        )  
+
+        if account_id:
+            if not InvestmentAccount.objects.filter(id=account_id, users=user).exists():
+                raise serializers.ValidationError(
+                    "Invalid account ID or insufficient access rights."
+                )
+
+            return Transaction.objects.filter(account_id=account_id)
+
+        return Transaction.objects.filter(account__users=user)
 
     def get_permissions(self):
-        account_id = self.request.data.get("account")
+        account_id = self.request.data.get("account")  # This is valid for POST requests
         try:
             account = InvestmentAccount.objects.get(id=account_id)
         except InvestmentAccount.DoesNotExist:
