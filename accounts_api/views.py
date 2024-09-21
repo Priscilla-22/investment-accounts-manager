@@ -36,7 +36,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         account_id = self.request.query_params.get("account")
         if account_id:
@@ -72,12 +72,18 @@ class TransactionViewSet(viewsets.ModelViewSet):
         self.check_post_only_permission(account, self.request)
         serializer.save()
 
+
     def update(self, request, *args, **kwargs):
         """
         Block update operation for 'post_only' accounts.
         """
         transaction = self.get_object()
         account = transaction.account
+        if account is None:
+            return Response(
+                {"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
         self.check_post_only_permission(account, request)
         return super().update(request, *args, **kwargs)
 
