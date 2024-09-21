@@ -36,6 +36,12 @@ class TransactionViewSet(viewsets.ModelViewSet):
     queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        account_id = self.request.query_params.get("account")
+        if account_id:
+            return self.queryset.filter(account_id=account_id)
+        return self.queryset
 
     def get_permissions(self):
         """
